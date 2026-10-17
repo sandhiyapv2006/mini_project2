@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CineRate – IMDb Movie Rating Discovery & Scraper</title>
+  
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#home" class="brand-logo">
+        <span class="logo-badge"><i class="fa-solid fa-film"></i></span>
+        <span class="brand-name">CineRate</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#home" class="nav-link active"><i class="fa-solid fa-house"></i> Home</a></li>
+        <li><a href="#top-movies" class="nav-link"><i class="fa-solid fa-ranking-star"></i> Top Movies</a></li>
+        <li><a href="#search-section" class="nav-link"><i class="fa-solid fa-magnifying-glass"></i> Search Movies</a></li>
+        <li><a href="#about" class="nav-link"><i class="fa-solid fa-circle-info"></i> About</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <button id="btn-refresh-data" class="btn btn-secondary btn-sm" title="Trigger headless Chrome scraper to collect updated data">
+          <i class="fa-solid fa-rotate"></i> Refresh Movie Data
+        </button>
+        <a id="btn-export-csv" href="/api/export" class="btn btn-primary btn-sm" download>
+          <i class="fa-solid fa-download"></i> Download CSV
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Scraping Status Alert Banner -->
+  <div id="status-banner" class="status-banner">
+    <div class="status-banner-content">
+      <div id="status-banner-msg">
+        <i class="fa-solid fa-spinner fa-spin"></i> Background scraping in progress...
+      </div>
+      <button id="btn-close-banner" class="btn-sm btn-outline" style="border:none; color:inherit; cursor:pointer;">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content Wrapper -->
+  <main class="main-wrapper">
+
+    <!-- Hero Section -->
+    <section id="home" class="hero-section">
+      <div class="hero-badge">
+        <i class="fa-solid fa-bolt"></i> Real-Time Movie Intelligence
+      </div>
+      
+      <h1 class="hero-title">Discover the World's Top Movies</h1>
+      <p class="hero-subtitle">Explore movie rankings, ratings, and release years with high precision data extracted in real-time.</p>
+
+      <!-- Movie Search Bar -->
+      <div id="search-section" class="hero-search-wrapper">
+        <div class="hero-search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="movie-search-input" placeholder="Search by movie title (e.g. Shawshank, Godfather, Inception)..." autocomplete="off">
+          <button id="clear-search-btn" class="search-clear-btn" title="Clear search">
+            <i class="fa-solid fa-circle-xmark"></i>
+          </button>
+          <button id="search-submit-btn" class="btn btn-primary">
+            Search
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-action-buttons">
+        <a href="#top-movies" class="btn btn-secondary">
+          <i class="fa-solid fa-table-list"></i> View Top Movies
+        </a>
+        <button id="hero-refresh-btn" class="btn btn-outline">
+          <i class="fa-solid fa-cloud-arrow-down"></i> Scrape Latest Data
+        </button>
+      </div>
+
+      <!-- Real Calculated Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fa-solid fa-clapperboard"></i>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">Total Movies Collected</div>
+            <div class="stat-value" id="stat-total-movies">--</div>
+            <div class="stat-subtext">Verified Records</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fa-solid fa-star-half-stroke"></i>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">Average IMDb Rating</div>
+            <div class="stat-value" id="stat-avg-rating">--</div>
+            <div class="stat-subtext">Across All Available Records</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fa-solid fa-trophy"></i>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">Highest Rated Movie</div>
+            <div class="stat-value" id="stat-highest-title" style="font-size: 1.35rem; line-height: 1.2;">--</div>
+            <div class="stat-subtext" id="stat-highest-rating">Rating: --</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top Movies Section -->
+    <section id="top-movies" class="top-movies-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title"><i class="fa-solid fa-star"></i> Top <span>Movie Records</span></h2>
+          <p class="section-subtitle">Ranked collection of all retrieved films with verified details.</p>
+        </div>
+        <div id="search-active-pill" style="display:none;">
+          <span style="background: rgba(245, 197, 24, 0.15); color: var(--accent-gold); padding: 0.35rem 0.8rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;">
+            Filtering by search: <strong id="active-query-text"></strong>
+            <a href="#" id="reset-search-pill" style="color: #fff; margin-left: 0.4rem; text-decoration: underline;">Clear</a>
+          </span>
+        </div>
+      </div>
+
+      <!-- Table Controls Bar: Sort, Filter, Page Size -->
+      <div class="table-controls-bar">
+        <div class="filter-group">
+          <!-- Rating Filter -->
+          <div class="control-item">
+            <label for="filter-rating"><i class="fa-solid fa-filter"></i> Min Rating:</label>
+            <select id="filter-rating" class="control-select">
+              <option value="">All Ratings</option>
+              <option value="9.0">9.0 & Above (Masterpieces)</option>
+              <option value="8.5">8.5 & Above (Critically Acclaimed)</option>
+              <option value="8.0">8.0 & Above (Top Rated)</option>
+              <option value="7.5">7.5 & Above (Recommended)</option>
+            </select>
+          </div>
+
+          <!-- Sort Column -->
+          <div class="control-item">
+            <label for="sort-by"><i class="fa-solid fa-arrow-down-wide-short"></i> Sort By:</label>
+            <select id="sort-by" class="control-select">
+              <option value="rank">Rank</option>
+              <option value="rating">IMDb Rating</option>
+              <option value="year">Release Year</option>
+              <option value="title">Movie Title</option>
+            </select>
+          </div>
+
+          <!-- Sort Direction -->
+          <div class="control-item">
+            <label for="sort-order">Order:</label>
+            <select id="sort-order" class="control-select">
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="control-item">
+            <label for="page-size">Per Page:</label>
+            <select id="page-size" class="control-select">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <button id="btn-reset-filters" class="btn btn-secondary btn-sm" title="Reset all filters">
+            <i class="fa-solid fa-arrows-rotate"></i> Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Dynamic Table Container -->
+      <div class="table-container">
+        <!-- Loading State -->
+        <div id="table-loading" class="state-box" style="display:none;">
+          <div class="spinner"></div>
+          <div class="state-title">Loading Movie Records...</div>
+          <div class="state-desc">Fetching the latest rankings and ratings from CineRate backend.</div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="table-empty" class="state-box" style="display:none;">
+          <div class="state-icon"><i class="fa-solid fa-film"></i></div>
+          <div class="state-title">No Movies Available</div>
+          <div class="state-desc" id="table-empty-msg">No movie records match your current filters or search query.</div>
+          <button id="empty-action-btn" class="btn btn-primary" style="margin-top: 1rem;">
+            <i class="fa-solid fa-rotate"></i> Refresh Movie Data
+          </button>
+        </div>
+
+        <!-- Error State -->
+        <div id="table-error" class="state-box" style="display:none;">
+          <div class="state-icon" style="color: var(--badge-red);"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="state-title">Failed to Load Movie Records</div>
+          <div class="state-desc" id="table-error-msg">An unexpected server error occurred while retrieving movies.</div>
+          <button id="error-retry-btn" class="btn btn-secondary" style="margin-top: 1rem;">
+            <i class="fa-solid fa-rotate-right"></i> Try Again
+          </button>
+        </div>
+
+        <!-- Actual Table -->
+        <table id="movies-table" class="movies-table">
+          <thead>
+            <tr>
+              <th data-sort="rank" class="sortable" style="width: 100px;">
+                Rank <i class="fa-solid fa-sort"></i>
+              </th>
+              <th data-sort="title" class="sortable">
+                Movie Title <i class="fa-solid fa-sort"></i>
+              </th>
+              <th data-sort="year" class="sortable" style="width: 160px;">
+                Release Year <i class="fa-solid fa-sort"></i>
+              </th>
+              <th data-sort="rating" class="sortable" style="width: 170px;">
+                IMDb Rating <i class="fa-solid fa-sort"></i>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="movies-table-body">
+            <!-- Injected by JavaScript fetch() -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Navigation -->
+      <div class="pagination-container" id="pagination-container">
+        <div class="pagination-info" id="pagination-info">
+          Showing 1 to 25 of 250 movies
+        </div>
+        <div class="pagination-controls" id="pagination-controls">
+          <!-- Page buttons injected by script.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about-section">
+      <h2 class="section-title"><i class="fa-solid fa-circle-nodes"></i> About <span>CineRate Platform</span></h2>
+      <p class="section-subtitle" style="margin-top: 0.5rem;">
+        CineRate is a robust full-stack web application designed for seamless movie data discovery and scraping.
+      </p>
+
+      <div class="about-grid">
+        <div class="about-feature-card">
+          <div class="about-feature-title">
+            <i class="fa-solid fa-robot"></i> Headless Selenium Engine
+          </div>
+          <p class="about-feature-desc">
+            Runs automated background scraping with Google Chrome in <code>--headless=new</code> mode. No intrusive browser pop-up windows appear.
+          </p>
+        </div>
+
+        <div class="about-feature-card">
+          <div class="about-feature-title">
+            <i class="fa-solid fa-bolt"></i> Real-Time REST APIs
+          </div>
+          <p class="about-feature-desc">
+            Built on Python Flask, delivering asynchronous endpoints for filtering, searching, statistical calculation, and CSV generation.
+          </p>
+        </div>
+
+        <div class="about-feature-card">
+          <div class="about-feature-title">
+            <i class="fa-solid fa-shield-halved"></i> Authorized Data Compliance
+          </div>
+          <p class="about-feature-desc">
+            Respects robots policies and rate limits. Seamlessly incorporates verified open movie datasets without bypassing security restrictions.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div>
+        <div class="brand-logo" style="font-size: 1.2rem;">
+          <span class="logo-badge"><i class="fa-solid fa-film"></i></span>
+          <span class="brand-name">CineRate</span>
+        </div>
+        <p class="footer-desc">Professional IMDb Movie Rating Scraper & Discovery Web Platform.</p>
+      </div>
+      <div>
+        <a href="#home" class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-up"></i> Back to Top</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; CineRate Project. All rights reserved.</span>
+      <span>Built with Python, Flask, Selenium & Pandas</span>
+    </div>
+  </footer>
+
+  <!-- Frontend Logic -->
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
