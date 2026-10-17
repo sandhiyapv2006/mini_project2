@@ -1,0 +1,3 @@
+# cineRate data directory
+*.csv
+!imdb_top250.csv
